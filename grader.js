@@ -26,12 +26,15 @@ var fs = require('fs');
 var program = require('commander');
 var cheerio = require('cheerio');
 var rest = require('restler');
+var sys = require('util');
+
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json"
 var URL_DEFAULT = "http://lowvolu.me"
 
 var assertFileExists = function(infile) {
 	var instr = infile.toString();
+	console.log(infile);
 	if(!fs.existsSync(instr)) {
 		console.log("%s does not exist. Exiting.", instr);
 		process.exit(1); // http://nodejs.org/api/process.html#process_process_exit_code
@@ -65,23 +68,53 @@ var clone = function(fn) {
 };
 
 var url_arg = function(url) {
-	return rest.get(url)
-};
+// 			return rest.get(url, function(response) {
+// 				return response;
+// 			})
+		rest.get(url)
+			.on('complete', function(response){
+			console.log("derp");
+			if(response instanceof Error) {
+				sys.puts('Error: ' + result.message);
+
+			} else {
+				sys.puts(response);
+				fs.writeFileSync('response.html', response);
+				var checkJson = checkHtmlFile('response.html', program.checks);
+				var outJson = JSON.stringify(checkJson, null, 4);
+				fs.writeFileSync("outJson.json", outJson);
+			}
+		})
+		}
+
 
 if(require.main == module) {
 	program
 		.option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
 		.option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
-		.option('-u, --url <url>', 'URL', , clone(assertFileExists), URL_DEFAULT))
+		.option('-u, --url <url>', 'URL', URL_DEFAULT)
 		.parse(process.argv);
-	var checkJson = checkHtmlFile(program.file, program.checks);
-	var outJson = JSON.stringify(checkJson, null, 4);
-	console.log(outJson);
+	if (process.argv[4] == '--url') {
+		console.log("yes, it is a url");
+		// String(url_arg(program.url))
+		url_arg(program.url);
+		console.log("yes, it is past url_arg(program.url)");
+		// var checkJson = checkHtmlFile('response.html', program.checks);	
+
+	} else {
+			var checkJson = checkHtmlFile(program.file, program.checks);
+			var outJson = JSON.stringify(checkJson, null, 4);
+			fs.writeFileSync("outJson.json", outJson);	
+		}
+	
+
+	
+	// console.log(outJson);
+	// fs.writeFileSync("response.json", url_arg(process.argv[5]));
+	// console.log("It's ARGV!", process.argv)
 } else {
 	exports.checkHtmlFile = checkHtmlFile;
 }
-
-
 
 
 
